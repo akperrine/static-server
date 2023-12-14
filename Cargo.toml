@@ -1,11 +1,13 @@
 [package]
 name = "static_server"
+description = "Simple HTTP server"
 version = "0.1.0"
 edition = "2021"
 
 
 [dependencies]
-clap = { version = "4.4.6", features = ["cargo"] }
-hyper = {version = "0.14", features = ["full"]}
-http = "*"
-tokio = {version = "*", features = ["full"]}
+clap = { version = "4.4.6", features = ["cargo"]}
+hyper = { version = "1.0.1", features = ["full"]}
+tokio = { version = "1", features = ["full"] }
+http-body-util = "0.1"
+hyper-util = { version = "0.1", features = ["full"] }
