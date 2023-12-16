@@ -542,10 +542,12 @@ name = "static_server"
 version = "0.1.0"
 dependencies = [
  "clap",
+ "futures-util",
  "http-body-util",
  "hyper",
  "hyper-util",
  "tokio",
+ "tokio-util",
 ]
 
 [[package]]

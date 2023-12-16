@@ -3,15 +3,25 @@ use std::io::Error as stdError;
 use std::net::SocketAddr;
 
 use clap::{command, crate_version, Arg};
-use http_body_util::BodyExt;
+
 use http_body_util::{combinators::BoxBody, Full};
+use http_body_util::{BodyExt, StreamBody};
+use hyper::body::Frame;
 use hyper::server::conn::http1;
 use hyper::service::service_fn;
+use hyper::Method;
 use hyper::{body::Bytes, Request, Response, StatusCode};
 use hyper_util::rt::TokioIo;
+use tokio::fs::File;
+use tokio::io::AsyncReadExt;
 use tokio::net::TcpListener;
+use tokio_util::io::ReaderStream;
+
+use futures_util::TryStreamExt;
 
 static NOTFOUND: &[u8] = b"Not Found";
+// static INDEX: &str = "/Users/austinperrine/Desktop/rust/static_server/file_src/index.html";
+static INDEX: &str = "./file_src/index.html";
 
 #[tokio::main]
 async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
@@ -76,8 +86,26 @@ async fn handle_requests(
     req: Request<hyper::body::Incoming>,
 ) -> Result<Response<BoxBody<Bytes, stdError>>, stdError> {
     match (req.method(), req.uri().path()) {
+        (&Method::GET, "/") => Ok(send_file(INDEX).await),
         _ => Ok(not_found()),
     }
+}
+
+async fn send_file(file_name: &str) -> Response<BoxBody<Bytes, stdError>> {
+    let file = tokio::fs::File::open(file_name).await;
+    if file.is_err() {
+        return not_found();
+    }
+
+    let mut file: tokio::fs::File = file.unwrap();
+
+    let reader_stream = ReaderStream::new(file);
+    let stream_body = StreamBody::new(reader_stream.map_ok(Frame::data));
+
+    Response::builder()
+        .status(StatusCode::NOT_FOUND)
+        .body(stream_body.boxed())
+        .unwrap()
 }
 
 fn not_found() -> Response<BoxBody<Bytes, stdError>> {
