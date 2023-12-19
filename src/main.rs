@@ -1,5 +1,4 @@
 use std::fs;
-use std::io::Error as stdError;
 use std::net::SocketAddr;
 
 use clap::{command, crate_version, Arg};
@@ -10,14 +9,15 @@ use hyper::body::Frame;
 use hyper::server::conn::http1;
 use hyper::service::service_fn;
 use hyper::Method;
-use hyper::{body::Bytes, Request, Response, StatusCode};
+
 use hyper_util::rt::TokioIo;
 use tokio::fs::File;
-use tokio::io::AsyncReadExt;
 use tokio::net::TcpListener;
 use tokio_util::io::ReaderStream;
 
 use futures_util::TryStreamExt;
+
+pub mod server;
 
 static NOTFOUND: &[u8] = b"Not Found";
 // static INDEX: &str = "/Users/austinperrine/Desktop/rust/static_server/file_src/index.html";
@@ -62,59 +62,24 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     let ip = matches.get_one::<String>("ip").unwrap();
     let port = matches.get_one::<String>("port").unwrap();
 
-    let addr: SocketAddr = format!("{}:{}", ip, port).parse().unwrap();
-    println!("{:?}", addr);
-    let listener = TcpListener::bind(addr).await.unwrap();
-    println!("listening on http://{}", addr);
+    let _ = server::start_server(&ip, &port).await;
+    Ok(())
+    // let addr: SocketAddr = format!("{}:{}", ip, port).parse().unwrap();
+    // println!("{:?}", addr);
+    // let listener = TcpListener::bind(addr).await.unwrap();
+    // println!("listening on http://{}", addr);
 
-    loop {
-        let (stream, _) = listener.accept().await.unwrap();
-        let io = TokioIo::new(stream);
+    // loop {
+    //     let (stream, _) = listener.accept().await.unwrap();
+    //     let io = TokioIo::new(stream);
 
-        tokio::task::spawn(async move {
-            if let Err(err) = http1::Builder::new()
-                .serve_connection(io, service_fn(handle_requests))
-                .await
-            {
-                println!("Failed to serve connection: {:?}", err);
-            }
-        });
-    }
-}
-
-async fn handle_requests(
-    req: Request<hyper::body::Incoming>,
-) -> Result<Response<BoxBody<Bytes, stdError>>, stdError> {
-    match (req.method(), req.uri().path()) {
-        (&Method::GET, "/") => Ok(send_file(INDEX).await),
-        _ => Ok(not_found()),
-    }
-}
-
-async fn send_file(file_name: &str) -> Response<BoxBody<Bytes, stdError>> {
-    let file = tokio::fs::File::open(file_name).await;
-    if file.is_err() {
-        return not_found();
-    }
-
-    let mut file: tokio::fs::File = file.unwrap();
-
-    let reader_stream = ReaderStream::new(file);
-    let stream_body = StreamBody::new(reader_stream.map_ok(Frame::data));
-
-    Response::builder()
-        .status(StatusCode::NOT_FOUND)
-        .body(stream_body.boxed())
-        .unwrap()
-}
-
-fn not_found() -> Response<BoxBody<Bytes, stdError>> {
-    Response::builder()
-        .status(StatusCode::NOT_FOUND)
-        .body(
-            Full::new("Not Found".into())
-                .map_err(|e| match e {})
-                .boxed(),
-        )
-        .unwrap()
+    //     tokio::task::spawn(async move {
+    //         if let Err(err) = http1::Builder::new()
+    //             .serve_connection(io, service_fn(handle_requests))
+    //             .await
+    //         {
+    //             println!("Failed to serve connection: {:?}", err);
+    //         }
+    //     });
+    // }
 }
